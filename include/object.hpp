@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include "incremental.hpp"
 
@@ -11,51 +12,51 @@ class IncrementalGC;
 class Object {
 protected:
 
-  Object **objects = nullptr;
+private:
+
+  // the GC must always load forwarding addresses
+  unsigned char is_forwarding : 1;
+  union {
+    struct {
+      // references 8-byte units of memory
+      unsigned short size : 12;
+      unsigned char offsetable : 1;
+      unsigned char color : 2;
+      // 2 bytes
+      unsigned char offSet : 8;
+      // 3 bytes
+      unsigned char num_objects : 8;
+      // 4 bytes
+    };
+    uint32_t forward_addr : 31;
+  };
 
 private:
-  unsigned short size;
-  unsigned char generation : 7;
-  unsigned char color : 1;
 
+  static Object *get_forwarded_pointer(Object *obj, IncrementalGC *gc) {
+    if (obj->is_forwarding) {
+      return gc->get_ptr_offset(obj->forward_addr);
+    } else {
+      return obj;
+    }
+  }
+
+  Object **loadObjs() {
+    if (offsetable) {
+      return (Object **)((char *)this + offSet);
+    } else {
+      return getObjects();
+    }
+  }
 protected:
-  unsigned char num_objects;
-
-  void setObjPtr(Object **objs, unsigned char n_obj) {
-    objects = objs;
-    num_objects = n_obj;
-  }
-
-  void gcWith(IncrementalGC *gc, bool newC) {
-    if (color == newC) {
-      return;
-    }
-    color = newC;
-    // moving the objects in one complete breadth-first
-    // swoop adds a lot of simplicity to the algorithm
-    // in the desired use-case, where most references are small
-    // this removes issues of a single objects reference-list changing mid compact
-    // the allocation strategy itself also prevents new allocations from ever getting GC'd
-    for (unsigned char i = 0; i < num_objects; i++) {
-      gc->relocate(&objects[i]);
-    }
-
-    // yield
-
-    for (unsigned char i = 0; i < num_objects; i++) {
-      // must do a proper re-iteration here since objects may have been nullified
-      Object *obj = objects[i];
-      if (obj != nullptr) {
-        // yields are contained in the gcWith call of each child
-        obj->gcWith(gc, newC);
-      }
-    }
-  }
 
   friend class IncrementalGC;
 
+  virtual Object ** getObjects() { return nullptr; }
+
 protected:
-  Object(unsigned short sz) : size(sz)
+  virtual ~Object() {}
+  Object(unsigned short sz) : size(sz / 8) {}
 };
 
 }

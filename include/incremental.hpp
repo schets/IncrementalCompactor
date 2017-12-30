@@ -1,5 +1,6 @@
 #pragma once
-#include <cstddef>
+#include <stddef.h>
+#include <stdint.h>
 
 namespace incremental {
 
@@ -7,22 +8,31 @@ class Object;
 
 class IncrementalGC {
 
-  bool curColor;
+  bool cur_color;
+  char *total_mem_block;
+
+  void gcObject(Object *from);
 
 public:
 
-  void *allocate(std::size_t sz);
+  const static size_t ForwardSize = 8;
 
-  bool advanceAllocator();
-
-  bool setModified();
+  void *allocate(size_t sz);
 
 
   // initializes a GC over the roots of an object
-  void gcRoots(Object** roots, int n_roots);
+  void gc_roots(Object** roots, int n_roots);
 
   // moves the object at the specfied pointer, and re-writes the pointer
-  void relocate(Object **obj);
+  Object *relocate(Object **obj);
+
+  Object *get_ptr_offset(uint32_t at) {
+    return (Object *)(total_mem_block + ForwardSize * at);
+  }
+
+  uint32_t get_forward_addr(Object *val) {
+    return ((char *)val - total_mem_block) / ForwardSize;
+  }
 };
 
 }
