@@ -12,9 +12,9 @@ When scanning the graph (remember that the GC yields to main code during this):
   
   1. All objects are initially marked white.
   2. When the collector reachs an object, it marks it grey.
-  3. The collector begins incrementally compacting objects that aren't in compact memory\*
   4. Forwarding pointers will be placed in the old location and used to re-direct references
-  5. The first forwarded reference will be fixed, this allows for an important optimization for objects that never have multiple references
+  5. The first forwarded reference will be fixed, this allows for an important optimization
+     for objects that never have multiple references
   6. After compacting an object, the GC will non-incrementally check that all objects are scanned.
   7. Once all objects are moved, the object is marked black
   8. The scan-compact stage is now complete
@@ -26,6 +26,10 @@ When scanning the graph (remember that the GC yields to main code during this):
   
 Concurrently with all of this, writers will mark on object as grey and set written flag when they move a currently living object from one location to another. The other cases, nullifying an object and adding a new object, don't require re-scanning since they do not move references in memory at danger of being relocated.
 
-Furthermore, writers are required to load a forwarding reference instead of a regular one to ensure that writes make it to the new address
+Furthermore, writers are required to load a forwarding reference
+instead of a regular one to ensure that writes make it to the new address.
+This can be avoided if the type in question will only have one live reference
+that is fixed in the initial move
 
-Readers will never have to take additional action since they can read from either the old or the new location
+Readers will only have to take additional action with forwarded items if the type in question
+requires special behavior based on address

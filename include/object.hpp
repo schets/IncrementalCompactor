@@ -12,23 +12,23 @@ class IncrementalGC;
 class Object {
 protected:
 
+  unsigned char must_move : 1;
 private:
 
-  // the GC must always load forwarding addresses
   unsigned char is_forwarding : 1;
   union {
     struct {
       // references 8-byte units of memory
       unsigned short size : 12;
-      unsigned char offsetable : 1;
       unsigned char color : 2;
       // 2 bytes
       unsigned char offSet : 8;
       // 3 bytes
-      unsigned char num_objects : 8;
+      unsigned char num_objects : 7;
+      unsigned char offsetable : 1;
       // 4 bytes
     };
-    uint32_t forward_addr : 31;
+    uint32_t forward_addr : 30;
   };
 
 private:
@@ -41,18 +41,19 @@ private:
     }
   }
 
-  Object **loadObjs() {
+  Object **load_objs() {
     if (offsetable) {
       return (Object **)((char *)this + offSet);
     } else {
-      return getObjects();
+      return get_objects();
     }
   }
 protected:
 
   friend class IncrementalGC;
 
-  virtual Object ** getObjects() { return nullptr; }
+  virtual Object ** get_objects() { return nullptr; }
+  virtual void move_to(Object *newPos);
 
 protected:
   virtual ~Object() {}

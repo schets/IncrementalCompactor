@@ -11,7 +11,9 @@ class IncrementalGC {
   bool cur_color;
   char *total_mem_block;
 
-  void gcObject(Object *from);
+  void gc_from(Object *from);
+
+  Object *relocate(Object **objp, Object *obj);
 
 public:
 
@@ -23,8 +25,6 @@ public:
   // initializes a GC over the roots of an object
   void gc_roots(Object** roots, int n_roots);
 
-  // moves the object at the specfied pointer, and re-writes the pointer
-  Object *relocate(Object **obj);
 
   Object *get_ptr_offset(uint32_t at) {
     return (Object *)(total_mem_block + ForwardSize * at);
