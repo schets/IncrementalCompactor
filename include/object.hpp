@@ -43,11 +43,20 @@ private:
   }
 protected:
 
+    void set_offset(Object **o, unsigned char num_o) {
+      num_objects = num_o;
+      offSet = (char *)o - (char *)this;
+    }
+
   friend class IncrementalGC;
 
   Object ** get_objects() { return load_objs(); }
 
-  Object(unsigned short sz) : size(sz / 8) {}
+  Object(unsigned short sz) : size(sz / 8) {
+    color = gc.white;
+    num_objects = 0;
+    is_forwarding = 0;
+  }
 
 
   static void write_reference(Object **to, Object *val, Object *parent) {
@@ -67,11 +76,17 @@ protected:
   }
 
   static Object *get_forwarded_pointer(Object *obj, IncrementalGC *gc) {
-    if (obj->is_forwarding) {
+    if (__builtin_expect(obj->is_forwarding, 0)) {
       return gc->get_ptr_offset(obj->forward_addr);
     } else {
       return obj;
     }
+
+  }
+public:
+
+  size_t get_bytes() {
+    return size * 8;
   }
 };
 

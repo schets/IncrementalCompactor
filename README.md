@@ -25,10 +25,7 @@ from one location to another. The other cases, nullifying an object
 and adding a new object, don't require re-scanning since they do not
 move references in memory at danger of being relocated.
 
-Furthermore, writers are required to load a forwarding reference
+Furthermore, readers/writers are required to load a forwarding reference
 instead of a regular one to ensure that writes make it to the new address.
 This can be avoided if the type in question will only have one live reference
 that is fixed in the initial move
-
-Readers will only have to take additional action with forwarded items if the type in question
-requires special behavior based on address

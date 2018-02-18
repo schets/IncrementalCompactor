@@ -4,12 +4,10 @@
 
 namespace incremental {
 
-
-void *IncrementalGC::allocate(size_t sz) {
-  return nullptr;
-}
+IncrementalGC gc(100000);
 
 void IncrementalGC::gc_roots(Object** roots, int n_roots) {
+  swap_gc_regions();
   for (int i = 0; i < n_roots; i++) {
     gc_from(roots[i]);
   }
@@ -24,17 +22,19 @@ void IncrementalGC::gc_from(Object *from) {
   bool needed_gc = true;
   from->color = GCColor::grey;
   // if this loop is depth-first, no need to have two loops?
-  while (needed_gc || from->color != GCColor::dirty) {
+  while (needed_gc || from->color == GCColor::dirty) {
     needed_gc = false;
     for (int i = 0; i < from->num_objects; i++) {
       // this code is reused across the initial GC and cleanup stage
       // theoretically, this could change across yields...
       Object **objs = from->load_objs();
+      if (objs[i] == nullptr) {
+        continue;
+      }
       Object *obj = Object::get_forwarded_pointer(objs[i], this);
 
       // some redundancies here? Need to double-check the algo+color states
-      if (obj != nullptr &&
-          needs_gc(obj->color) &&
+      if (needs_gc(obj->color) &&
           in_gc_region(obj)) // roots are allocated outside of the GC region
       {
         needed_gc = true;
@@ -63,6 +63,9 @@ void IncrementalGC::gc_from(Object *from) {
 
   for (int i = 0; i < from->num_objects; i++) {
     Object **objs = from->load_objs();
+    if (objs[i] == nullptr) {
+      continue;
+    }
     Object *obj = Object::get_forwarded_pointer(objs[i], this);
     gc_from(obj);
   }
@@ -74,7 +77,7 @@ Object *IncrementalGC::relocate(Object **objp, Object *obj) {
   if (new_obj == nullptr) {
     return nullptr;
   }
-  memcpy((char *)new_obj, (char *)obj, obj->size);
+  memcpy((char *)new_obj, (char *)obj, obj->get_bytes());
   *objp = new_obj;
   return new_obj;
 }
